@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Depotplaner</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="center">
+    <div class="card login">
+      <div class="brand"><img src="/static/icon.svg" width="26" height="26" alt=""> Depotplaner</div>
+      <p>Anmeldung nur mit Passkey.</p>
+      <button class="btn primary" id="login">Mit Passkey anmelden</button>
+      <div class="msg" id="msg" role="status"></div>
+    </div>
+  </main>
+  <script src="/static/webauthn.js"></script>
+  <script src="/static/login.js"></script>
+</body>
+</html>

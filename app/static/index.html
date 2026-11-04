@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Depotplaner</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon.svg">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><img src="/static/icon.svg" width="26" height="26" alt=""> Depotplaner</div>
+    <button class="btn ghost small" id="logout">Abmelden</button>
+  </header>
+
+  <section>
+    <div class="row-head">
+      <h2 id="forecast-title">Prognose</h2>
+      <div class="seg" role="group" aria-label="Darstellung">
+        <button data-mode="nominal" class="on">Nominal</button>
+        <button data-mode="real">Real</button>
+      </div>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <div class="paidline" id="paidline"></div>
+
+    <div class="card chart-card">
+      <div class="chart-tools">
+        <div class="legend">
+          <span><i class="swatch"></i>Erwartet</span>
+          <span><i class="swatch dash"></i>Best / Worst</span>
+          <span><i class="band"></i>Spread</span>
+          <span><i class="swatch paid"></i>Eingezahlt</span>
+        </div>
+      </div>
+      <div class="chart-box"><canvas id="chart" aria-label="Depotentwicklung"></canvas></div>
+      <div class="warn" id="warnings"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Annahmen</h2>
+    <form class="card grid" id="settings">
+      <label class="f">Anlagehorizont (Jahre)<input name="years" inputmode="numeric"></label>
+      <label class="f">Best Case (± %-Punkte p.&nbsp;a.)<input name="best_delta" inputmode="decimal"></label>
+      <label class="f">Worst Case (± %-Punkte p.&nbsp;a.)<input name="worst_delta" inputmode="decimal"></label>
+      <label class="f">Inflation (% p.&nbsp;a.)<input name="inflation" inputmode="decimal"></label>
+      <label class="f">Sparerpauschbetrag (€)<input name="allowance" inputmode="decimal"></label>
+      <label class="f">Kirchensteuer
+        <select name="church_tax">
+          <option value="0">keine</option>
+          <option value="8">8 % (Bayern, BW)</option>
+          <option value="9">9 % (übrige Länder)</option>
+        </select>
+      </label>
+      <div class="status" id="settings-status"></div>
+    </form>
+  </section>
+
+  <section>
+    <div class="row-head">
+      <h2>Posten</h2>
+      <div class="inline">
+        <button class="btn small" id="refresh-all">Kurse aktualisieren</button>
+        <button class="btn primary small" id="add">+ Posten</button>
+      </div>
+    </div>
+    <div class="positions" id="positions"></div>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" id="pos-form">
+    <h3 id="dlg-title">Posten</h3>
+
+    <fieldset class="grid">
+      <legend class="sub">Wertpapier</legend>
+      <label class="f">Art
+        <select name="kind">
+          <option value="etf">ETF</option>
+          <option value="fund">Fonds</option>
+          <option value="stock">Aktie</option>
+          <option value="crypto">Krypto</option>
+        </select>
+      </label>
+      <label class="f" id="ident-label"><span>ISIN</span>
+        <div class="inline">
+          <input name="isin" autocapitalize="characters" autocomplete="off">
+          <button type="button" class="btn small" id="lookup">Suchen</button>
+        </div>
+      </label>
+      <label class="f">Name<input name="name" required maxlength="80"></label>
+      <div class="lookup wide" id="lookup-info" hidden></div>
+    </fieldset>
+
+    <fieldset class="grid">
+      <legend class="sub">Aktueller Stand</legend>
+      <label class="f">Stückzahl<input name="shares" inputmode="decimal"><small>× Online-Kurs</small></label>
+      <label class="f">Wert manuell (€)<input name="manual_value" inputmode="decimal"><small>überschreibt Stückzahl × Kurs</small></label>
+      <label class="f">Einstandswert (€)<input name="cost_basis" inputmode="decimal"><small>leer = aktueller Wert</small></label>
+    </fieldset>
+
+    <fieldset class="grid">
+      <legend class="sub">Sparplan</legend>
+      <label class="f">Sparrate (€)<input name="rate" inputmode="decimal"></label>
+      <label class="f">Turnus
+        <select name="interval">
+          <option value="daily">täglich</option>
+          <option value="weekly">wöchentlich</option>
+          <option value="monthly">monatlich</option>
+        </select>
+      </label>
+      <label class="f" id="day-label"><span>Ausführungstag</span>
+        <select name="exec_day_week">
+          <option value="0">Montag</option><option value="1">Dienstag</option><option value="2">Mittwoch</option>
+          <option value="3">Donnerstag</option><option value="4">Freitag</option><option value="5">Samstag</option>
+          <option value="6">Sonntag</option>
+        </select>
+        <input name="exec_day_month" inputmode="numeric" placeholder="1 bis 31">
+      </label>
+      <label class="f">Handel
+        <select name="trading">
+          <option value="exchange">nur Börsentage</option>
+          <option value="always">jeden Tag</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset class="grid">
+      <legend class="sub">Rendite, Kosten, Steuer</legend>
+      <label class="f">Erw. Rendite (% p.&nbsp;a.)<input name="manual_return" inputmode="decimal"><small id="ret-hint">leer = historisch</small></label>
+      <label class="f">Gebühr je Ausführung (€)<input name="fee" inputmode="decimal"></label>
+      <label class="f">TER (% p.&nbsp;a.)<input name="ter" inputmode="decimal"></label>
+      <label class="f">Steuerart
+        <select name="tax_type">
+          <option value="equity_fund">Aktienfonds/ETF (30 % frei)</option>
+          <option value="mixed_fund">Mischfonds (15 % frei)</option>
+          <option value="other_fund">Sonstiger Fonds (0 %)</option>
+          <option value="stock">Einzelaktie</option>
+          <option value="crypto">Krypto (steuerfrei)</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <div class="msg" id="dlg-msg"></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn danger" id="delete">Löschen</button>
+      <div class="right">
+        <button type="button" class="btn" id="cancel">Abbrechen</button>
+        <button type="submit" class="btn primary" id="save">Speichern</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script src="/static/vendor/chart.umd.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
