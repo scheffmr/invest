@@ -193,6 +193,7 @@ function renderPositions() {
     const q = p.quote;
     const valSrc = p.value_src === "manual" ? `<span class="chip manual">Wert manuell</span>`
       : p.value_src === "online" ? `<span class="chip">${esc(p.shares.toLocaleString("de-DE"))} Stk × ${eur2.format(q.price_eur)}</span>`
+      : p.value_src === "basis" ? `<span class="chip">kein Kurs, Wert = Einstand</span>`
       : `<span class="chip">kein Wert</span>`;
     const retSrc = p.ret_src === "manual" ? `<span class="chip manual">${pct(p.ret)} p. a. manuell</span>`
       : p.ret_src === "online" ? `<span class="chip">${pct(p.ret)} p. a. (hist. ${q.hist_years} J.)</span>`

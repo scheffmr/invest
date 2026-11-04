@@ -181,3 +181,16 @@ h2 .info { text-transform: none; letter-spacing: 0; }
   font-size: 13px; line-height: 1.45; padding: 10px 12px; border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0,0,0,.25); text-transform: none; letter-spacing: 0;
 }
+/* Import */
+.hint { margin: 0; font-size: 13px; color: var(--text-2); }
+.imp-list { display: grid; gap: 8px; }
+.imp-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: grid; gap: 6px; font-size: 13px; }
+.imp-item .top { display: flex; gap: 10px; align-items: flex-start; }
+.imp-item .top input { width: auto; margin-top: 3px; }
+.imp-item .t { font-weight: 600; font-size: 14px; }
+.imp-item .sub { color: var(--text-2); }
+.imp-item label.chk { display: flex; gap: 8px; align-items: center; color: var(--text-2); }
+.imp-item label.chk input { width: auto; }
+.imp-item .row2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.imp-item select { width: auto; padding: 5px 8px; font-size: 13px; }
+.warnlist { font-size: 12px; color: var(--muted); }

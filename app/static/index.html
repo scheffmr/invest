@@ -66,6 +66,7 @@
       <h2>Posten</h2>
       <div class="inline">
         <button class="btn small" id="refresh-all">Kurse aktualisieren</button>
+        <button class="btn small" id="import">Import</button>
         <button class="btn primary small" id="add">+ Posten</button>
       </div>
     </div>
@@ -157,8 +158,27 @@
   </form>
 </dialog>
 
+
+<dialog id="imp">
+  <form method="dialog" id="imp-form">
+    <h3>Revolut-Import</h3>
+    <p class="hint">Kontoauszug als CSV aus der Revolut-App, für Aktien/ETFs und Krypto getrennt. Du kannst mehrere Dateien gleichzeitig wählen.</p>
+    <input type="file" id="imp-files" accept=".csv,text/csv" multiple>
+    <div class="msg" id="imp-msg"></div>
+    <div id="imp-list" class="imp-list"></div>
+    <div class="dlg-actions">
+      <span></span>
+      <div class="right">
+        <button type="button" class="btn" id="imp-cancel">Abbrechen</button>
+        <button type="submit" class="btn primary" id="imp-apply" disabled>Übernehmen</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
 <script src="/static/vendor/chart.umd.min.js"></script>
 <script src="/static/app.js"></script>
+<script src="/static/import.js"></script>
 <script src="/static/info.js"></script>
 </body>
 </html>

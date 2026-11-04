@@ -55,3 +55,21 @@ def test_compound_growth_and_tax():
     assert abs(exp["tax"] - (gain * 0.7 - 1000) * 0.26375) < 1
     assert r["scenarios"]["best"]["gross"] > exp["gross"] > r["scenarios"]["worst"]["gross"]
     assert len(r["labels"]) == len(r["paid_in"]) == len(exp["series"])
+
+
+def test_revolut_import():
+    from app.importer import parse
+    stocks = ("Date,Ticker,Type,Quantity,Price per share,Total Amount,Currency,FX Rate\n"
+              "2026-10-01T08:00:00Z,,CASH TOP-UP,,,EUR 10,EUR,1.0000\n"
+              "2026-10-01T08:00:01Z,ABC,BUY - MARKET,2,EUR 5,EUR 10,EUR,1.0000\n"
+              "2026-10-08T08:00:01Z,ABC,BUY - MARKET,2,EUR 5,EUR 10,EUR,1.0000\n"
+              "2026-10-15T08:00:01Z,ABC,BUY - MARKET,2,EUR 5,EUR 10,EUR,1.0000\n"
+              "2026-10-20T08:00:01Z,ABC,SELL - MARKET,3,EUR 6,EUR 18,EUR,1.0000\n")
+    crypto = ('Symbol,Type,Quantity,Price,Value,Fees,Date\n'
+              'BTC,Kaufen,"0,001","70.000,00€","70,00€","0,50€","01.11.2026, 10:00:00"\n')
+    r = parse([stocks, crypto], date(2026, 10, 22))
+    abc = next(i for i in r["items"] if i["ident"] == "ABC")
+    assert abc["shares"] == 3 and abs(abc["cost_basis"] - 15) < 1e-9
+    assert abc["plan"]["interval"] == "weekly" and abc["plan"]["exec_day"] == 3
+    btc = next(i for i in r["items"] if i["ident"] == "BTC")
+    assert btc["shares"] == 0.001 and btc["cost_basis"] == 70.5

@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, db, market
+from . import auth, db, importer, market
 from .simulate import Pos, Settings, simulate
 
 STATIC = os.path.join(os.path.dirname(__file__), "static")
@@ -160,6 +160,8 @@ def _enrich(row) -> dict:
         value, value_src = p["manual_value"], "manual"
     elif p["shares"] and price:
         value, value_src = p["shares"] * price, "online"
+    elif p["shares"] and p["cost_basis"]:
+        value, value_src = p["cost_basis"], "basis"
     else:
         value, value_src = 0.0, "none"
     if p["manual_return"] is not None:
@@ -269,3 +271,99 @@ def run_simulation(user=Depends(auth.require_user)):
     result["warnings"] = [f"{r['name']}: keine erwartete Rendite, es wird mit 0 % gerechnet"
                           for r in rows if r["ret_src"] == "none"]
     return result
+
+
+# ---------- Import (Revolut-CSV) ----------
+QUOTE_KIND = {"ETF": "etf", "EQUITY": "stock", "MUTUALFUND": "fund", "CRYPTOCURRENCY": "crypto"}
+KIND_TAX = {"etf": "equity_fund", "fund": "equity_fund", "stock": "stock", "crypto": "crypto"}
+
+
+def _match(rows, item, symbol):
+    ident = item["ident"].upper()
+    for r in rows:
+        if item["source"] == "crypto":
+            if r["kind"] == "crypto" and (r["isin"] or "").upper() == ident:
+                return r
+            continue
+        if r["kind"] == "crypto":
+            continue
+        sym = (r["symbol"] or "").upper()
+        if (r["isin"] or "").upper() == ident or (symbol and sym == symbol.upper()) or sym.split(".")[0] == ident:
+            return r
+    return None
+
+
+@app.post("/api/import/preview")
+def import_preview(body: dict = Body(...), user=Depends(auth.require_user)):
+    files = body.get("files") or []
+    if not isinstance(files, list) or not files or sum(len(f) for f in files) > 5_000_000:
+        raise HTTPException(400, "Bitte eine oder mehrere CSV-Dateien (max. 5 MB) wählen.")
+    result = importer.parse([str(f) for f in files])
+    with db.tx() as con:
+        rows = [dict(r) for r in _rows(con, user["id"])]
+    for it in result["items"]:
+        kind_hint = "crypto" if it["source"] == "crypto" else "etf"
+        q = market.get(it["ident"], kind_hint)
+        ok = "error" not in q
+        kind = "crypto" if it["source"] == "crypto" else QUOTE_KIND.get(q.get("quote_type") if ok else None, "etf")
+        it.update(
+            symbol=q.get("symbol") if ok else None,
+            name=(q.get("name") if ok else None) or it["ident"],
+            kind=kind,
+            tax_type=KIND_TAX[kind],
+            price_eur=q.get("price_eur") if ok else None,
+            quote_error=None if ok else q.get("error"),
+        )
+        m = _match(rows, it, it["symbol"])
+        it["match_id"] = m["id"] if m else None
+        it["match_name"] = m["name"] if m else None
+    return result
+
+
+class ImportItem(BaseModel):
+    ident: str = Field(min_length=1, max_length=20)
+    source: Literal["security", "crypto"]
+    name: str = Field(min_length=1, max_length=80)
+    kind: Literal["etf", "fund", "stock", "crypto"]
+    tax_type: Literal["equity_fund", "mixed_fund", "other_fund", "stock", "crypto"]
+    symbol: Optional[str] = Field(default=None, max_length=30)
+    shares: float = Field(ge=0)
+    cost_basis: float = Field(ge=0)
+    match_id: Optional[int] = None
+    plan: Optional[dict] = None
+    use_plan: bool = False
+
+
+@app.post("/api/import/apply")
+def import_apply(items: list[ImportItem], user=Depends(auth.require_user)):
+    done = 0
+    with db.tx() as con:
+        for it in items:
+            plan = it.plan if it.use_plan and it.plan else None
+            fields = {"shares": it.shares, "cost_basis": it.cost_basis, "manual_value": None}
+            if plan:
+                fields.update(rate=float(plan.get("rate", 0)), interval=plan.get("interval", "monthly"),
+                              exec_day=int(plan.get("exec_day", 1)), trading=plan.get("trading", "exchange"),
+                              fee=float(plan.get("fee", 0)))
+                if fields["interval"] not in ("daily", "weekly", "monthly") or \
+                        fields["trading"] not in ("exchange", "always"):
+                    raise HTTPException(400, "Ungültiger Sparplan im Import.")
+            if it.match_id:
+                _own(con, it.match_id, user["id"])
+                cur = dict(_own(con, it.match_id, user["id"]))
+                if not cur["isin"]:
+                    fields["isin"] = it.ident.upper()
+                if not cur["symbol"] and it.symbol:
+                    fields["symbol"] = it.symbol.upper()
+                con.execute(f"UPDATE positions SET {', '.join(k + '=?' for k in fields)} WHERE id=?",
+                            list(fields.values()) + [it.match_id])
+            else:
+                fields.update(name=it.name, kind=it.kind, tax_type=it.tax_type, isin=it.ident.upper(),
+                              symbol=(it.symbol or "").upper() or None)
+                if it.kind == "crypto":
+                    fields.setdefault("trading", "always")
+                cols = ", ".join(fields)
+                con.execute(f"INSERT INTO positions(user_id, {cols}) VALUES (?{', ?' * len(fields)})",
+                            [user["id"]] + list(fields.values()))
+            done += 1
+    return {"ok": True, "count": done}

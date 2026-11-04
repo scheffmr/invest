@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 
 from . import config, db
 
 log = logging.getLogger("market")
+ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 
 # Bevorzugte Handelsplätze für EUR-Kurse
 PREFERRED_EXCHANGES = ["GER", "FRA", "STU", "MUN", "BER", "DUS", "HAM", "AMS", "PAR", "MIL"]
@@ -37,6 +39,11 @@ def resolve_symbol(ident: str, kind: str) -> tuple[str, str | None]:
         sym = ident if "-" in ident else f"{ident}-EUR"
         return sym, None
     import yfinance as yf
+    if not ISIN_RE.match(ident) and "." not in ident:
+        # Börsenticker wie bei Revolut (z. B. EDM4): zuerst Xetra probieren
+        h = yf.Ticker(f"{ident}.DE").history(period="5d")
+        if not h.empty:
+            return f"{ident}.DE", None
     res = yf.Search(ident, max_results=10, news_count=0)
     q = _pick_symbol(res.quotes)
     if not q:
@@ -95,12 +102,13 @@ def fetch(ident: str, kind: str, symbol: str | None = None) -> dict:
         currency = "EUR"
     fx = _fx_to_eur(currency or "EUR")
     hist, hist_years = _hist_return(symbol)
-    if not name:
-        try:
-            info = t.info
-            name = info.get("longName") or info.get("shortName")
-        except Exception:
-            name = None
+    quote_type = None
+    try:
+        info = t.info
+        name = name or info.get("longName") or info.get("shortName")
+        quote_type = info.get("quoteType")
+    except Exception:
+        pass
     return {
         "symbol": symbol,
         "name": name,
@@ -109,6 +117,7 @@ def fetch(ident: str, kind: str, symbol: str | None = None) -> dict:
         "price_eur": round(price * fx, 4),
         "hist_return": hist,
         "hist_years": hist_years,
+        "quote_type": quote_type,
     }
 
 
