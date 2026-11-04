@@ -113,7 +113,7 @@ function renderChart() {
       x: { grid: { display: false }, ticks: { color: text2, maxRotation: 0, autoSkip: true, maxTicksLimit: 7, callback(v) { return this.getLabelForValue(v).split("/")[1]; } } },
       y: {
         grid: { color: grid }, border: { display: false },
-        ticks: { color: text2, maxTicksLimit: 6, callback: (v) => (Math.abs(v) >= 1e6 ? `${(v / 1e6).toLocaleString("de-DE", { maximumFractionDigits: 1 })} Mio €` : `${Math.round(v / 1000).toLocaleString("de-DE")} T€`) },
+        ticks: { color: text2, maxTicksLimit: 6, callback: (v) => (Math.abs(v) >= 1e6 ? `${(v / 1e6).toLocaleString("de-DE", { maximumFractionDigits: 1 })} Mio €` : `${(Math.round(v / 1000) || 0).toLocaleString("de-DE")} T€`) },
       },
     },
   };

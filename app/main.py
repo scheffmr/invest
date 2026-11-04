@@ -263,7 +263,8 @@ def run_simulation(user=Depends(auth.require_user)):
         rows = [_enrich(r) for r in _rows(con, user["id"])]
     positions = [Pos(value=r["value"], basis=r["basis"], rate=r["rate"], interval=r["interval"],
                      exec_day=r["exec_day"], trading=r["trading"], ret=r["ret"], fee=r["fee"],
-                     ter=r["ter"], tax_type=r["tax_type"]) for r in rows]
+                     ter=r["ter"] if r["ret_src"] == "manual" else 0.0,
+                     tax_type=r["tax_type"]) for r in rows]
     result = simulate(positions, Settings(**s))
     result["warnings"] = [f"{r['name']}: keine erwartete Rendite, es wird mit 0 % gerechnet"
                           for r in rows if r["ret_src"] == "none"]

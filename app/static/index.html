@@ -17,10 +17,12 @@
 
   <section>
     <div class="row-head">
-      <h2 id="forecast-title">Prognose</h2>
-      <div class="seg" role="group" aria-label="Darstellung">
-        <button data-mode="nominal" class="on">Nominal</button>
-        <button data-mode="real">Real</button>
+      <h2 data-info-slot="forecast"><span id="forecast-title">Prognose</span></h2>
+      <div class="inline center-y" data-info-slot="mode">
+        <div class="seg" role="group" aria-label="Darstellung">
+          <button data-mode="nominal" class="on">Nominal</button>
+          <button data-mode="real">Real</button>
+        </div>
       </div>
     </div>
     <div class="tiles" id="tiles"></div>
@@ -157,5 +159,6 @@
 
 <script src="/static/vendor/chart.umd.min.js"></script>
 <script src="/static/app.js"></script>
+<script src="/static/info.js"></script>
 </body>
 </html>
