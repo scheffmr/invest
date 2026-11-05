@@ -194,8 +194,14 @@ const INTERVAL = { daily: "täglich", weekly: "wöchentlich", monthly: "monatlic
 const WEEKDAY = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const KIND = { etf: "ETF", fund: "Fonds", stock: "Aktie", crypto: "Krypto" };
 
+const fmtMonth = (iso) => new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+function changesText(p) {
+  return (p.changes || []).map((c) => `ab ${fmtMonth(c.from_date)}: ${c.rate ? eur2.format(c.rate) : "Pause/Ende"}`);
+}
+
 function planText(p) {
-  if (!p.rate) return "kein Sparplan";
+  if (!p.rate) return (p.changes || []).length ? "aktuell kein Sparplan" : "kein Sparplan";
   let when = "";
   if (p.interval === "weekly") when = `, ${WEEKDAY[p.exec_day] || ""}`;
   if (p.interval === "monthly") when = `, am ${p.exec_day}.`;
@@ -222,7 +228,7 @@ function renderPositions() {
       <div><div class="name">${esc(p.name)}</div>
         <div class="id">${esc(KIND[p.kind])}${p.isin ? " · " + esc(p.isin) : ""}${p.symbol ? " · " + esc(p.symbol) : ""}</div></div>
       <div class="val">${eur.format(p.value)}</div>
-      <div class="meta">${valSrc}${retSrc}<span class="chip">${esc(planText(p))}</span>
+      <div class="meta">${valSrc}${retSrc}<span class="chip">${esc(planText(p))}</span>${changesText(p).map((t) => `<span class="chip manual">${esc(t)}</span>`).join("")}
         <span class="chip">${p.trading === "always" ? "jeden Tag" : "Börsentage"}</span>${stale}</div>
       <div class="actions">
         ${p.isin ? `<button class="btn small" data-refresh="${p.id}">Kurs abrufen</button>` : ""}
@@ -304,6 +310,8 @@ function openDialog(p) {
   f.elements.exec_day_month.value = String(Math.max(1, d.exec_day));
   f.elements.trading.value = d.trading;
   f.elements.tax_type.value = d.tax_type;
+  $("#ch-list").innerHTML = "";
+  (d.changes || []).forEach((c) => addChangeRow(c.from_date, c.rate));
   $("#ret-hint").textContent = p && p.quote && p.quote.hist_return != null
     ? `leer = historisch ${pct(p.quote.hist_return)}` : "leer = historisch";
   syncDialog();
@@ -311,6 +319,21 @@ function openDialog(p) {
 }
 
 $("#add").addEventListener("click", () => openDialog(null));
+
+function addChangeRow(from = "", rate = null) {
+  const row = document.createElement("div");
+  row.className = "ch-row";
+  const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+  row.innerHTML = `<input type="date" min="${tomorrow}" aria-label="ab Datum">
+    <input class="ch-rate" inputmode="decimal" placeholder="Sparrate €" aria-label="neue Sparrate">
+    <button type="button" class="btn small ghost ch-del" aria-label="Änderung entfernen">✕</button>`;
+  row.querySelector("input[type=date]").value = from || "";
+  row.querySelector("input.ch-rate").value = rate == null ? "" : fmtIn(rate);
+  $("#ch-list").appendChild(row);
+  return row;
+}
+$("#ch-add").addEventListener("click", () => addChangeRow().querySelector("input").focus());
+$("#ch-list").addEventListener("click", (e) => { if (e.target.closest(".ch-del")) e.target.closest(".ch-row").remove(); });
 $("#cancel").addEventListener("click", () => dlg.close());
 
 $("#lookup").addEventListener("click", async () => {
@@ -346,6 +369,14 @@ f.addEventListener("submit", async (e) => {
   };
   for (const k of ["shares", "manual_value", "cost_basis", "manual_return"]) body[k] = num(f.elements[k].value);
   for (const k of ["rate", "fee", "ter"]) body[k] = num(f.elements[k].value) ?? 0;
+  body.changes = [];
+  for (const row of document.querySelectorAll("#ch-list .ch-row")) {
+    const from = row.querySelector("input[type=date]").value;
+    const r = num(row.querySelector("input.ch-rate").value);
+    if (!from && r == null) continue;
+    if (!from || r == null || Number.isNaN(r) || r < 0) { $("#dlg-msg").textContent = "Bitte bei jeder Änderung Datum und Sparrate angeben."; return; }
+    body.changes.push({ from_date: from, rate: r });
+  }
   const bad = Object.entries(body).find(([, v]) => typeof v === "number" && Number.isNaN(v));
   if (bad) { $("#dlg-msg").textContent = "Bitte nur Zahlen in die Zahlenfelder eintragen."; return; }
   if (iv === "monthly" && (body.exec_day < 1 || body.exec_day > 31)) { $("#dlg-msg").textContent = "Ausführungstag muss zwischen 1 und 31 liegen."; return; }

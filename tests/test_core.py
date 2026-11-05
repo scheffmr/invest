@@ -96,3 +96,23 @@ def test_paid_in_real():
     # letzte Einzahlung nach ~10 Jahren zählt real nur noch ca. 100 / 1,02^10
     inc_real = r["paid_in_real"][-1] - r["paid_in_real"][-2]
     assert abs(inc_real - 100 / 1.02 ** 10) < 1
+
+
+def test_rate_changes():
+    start = date(2026, 11, 4)
+    base = dict(value=0, basis=0, interval="monthly", exec_day=1, trading="always", ret=0)
+    # 0 € bis 2027, dann 100 €, ab 2028 wieder 0 €: genau 12 Einzahlungen
+    p = Pos(rate=0, changes=[(date(2027, 1, 1), 100.0), (date(2028, 1, 1), 0.0)], **base)
+    r = simulate([p], Settings(years=5, inflation=0), start)
+    assert r["paid_total"] == 1200
+    # Erhöhung: 50 € bis Ende 2026 (Dez.), danach 100 € bis Nov. 2027
+    q = Pos(rate=50, changes=[(date(2027, 1, 1), 100.0)], **base)
+    r = simulate([q], Settings(years=1, inflation=0), start)
+    assert r["paid_total"] == 50 + 11 * 100
+
+
+def test_fold_changes():
+    from app.main import _fold_changes
+    rate, fut = _fold_changes(3, [{"from_date": "2027-01-01", "rate": 5}, {"from_date": "2026-01-01", "rate": 4}],
+                              date(2026, 11, 5))
+    assert rate == 4 and fut == [{"from_date": "2027-01-01", "rate": 5.0}]

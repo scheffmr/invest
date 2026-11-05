@@ -93,6 +93,16 @@ def tx():
         con.close()
 
 
+MIGRATIONS = {
+    "positions": {"changes": "TEXT NOT NULL DEFAULT '[]'"},  # geplante Sparratenänderungen (JSON)
+}
+
+
 def init():
     with tx() as con:
         con.executescript(SCHEMA)
+        for table, cols in MIGRATIONS.items():
+            have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
+            for col, ddl in cols.items():
+                if col not in have:
+                    con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")

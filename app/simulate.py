@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import calendar
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from .xetra import is_trading_day, next_trading_day
@@ -32,6 +32,16 @@ class Pos:
     fee: float = 0.0      # Gebühr je Ausführung EUR
     ter: float = 0.0      # laufende Kosten p.a. in %
     tax_type: str = "equity_fund"
+    changes: list = field(default_factory=list)  # [(ab_datum, sparrate)], sortiert
+
+    def rate_at(self, d: date) -> float:
+        r = self.rate
+        for since, rate in self.changes:
+            if since <= d:
+                r = rate
+            else:
+                break
+        return r
 
 
 @dataclass
@@ -54,7 +64,7 @@ def tax_rate(church_pct: float) -> float:
 def execution_dates(p: Pos, start: date, end: date) -> Counter:
     """Ausführungstage im Intervall (start, end]."""
     out: Counter = Counter()
-    if p.rate <= 0:
+    if p.rate <= 0 and not any(r > 0 for _, r in p.changes):
         return out
     exch = p.trading == "exchange"
     d = start + timedelta(days=1)
@@ -91,7 +101,17 @@ def execution_dates(p: Pos, start: date, end: date) -> Counter:
     return out
 
 
-def _run(positions: list[Pos], schedules: list[Counter], start: date, end: date,
+def contributions(p: Pos, start: date, end: date) -> dict:
+    """Ausführungstag -> (Anzahl, Betrag) mit der jeweils gültigen Sparrate."""
+    out = {}
+    for d, c in execution_dates(p, start, end).items():
+        amount = c * p.rate_at(d)
+        if amount > 0:
+            out[d] = (c, amount)
+    return out
+
+
+def _run(positions: list[Pos], schedules: list[dict], start: date, end: date,
          delta: float, sample_days: set[date], infl: float = 0.0):
     n = len(positions)
     values = [p.value for p in positions]
@@ -113,13 +133,13 @@ def _run(positions: list[Pos], schedules: list[Counter], start: date, end: date,
         deflator *= day_infl
         for i in range(n):
             values[i] *= factors[i]
-            c = schedules[i].get(d)
-            if c:
-                p = positions[i]
-                values[i] += c * max(0.0, p.rate - p.fee)
-                basis[i] += c * p.rate
-                paid += c * p.rate
-                paid_real += c * p.rate / deflator
+            x = schedules[i].get(d)
+            if x:
+                c, amount = x
+                values[i] += max(0.0, amount - c * positions[i].fee)
+                basis[i] += amount
+                paid += amount
+                paid_real += amount / deflator
         if d in sample_days:
             series_val.append(sum(values))
             series_paid.append(paid)
@@ -179,14 +199,14 @@ def simulate(positions: list[Pos], s: Settings, start: date | None = None) -> di
     labels.append(end.strftime("%Y-%m"))
     sample_dates = [start] + sorted(sample_days)
 
-    schedules = [execution_dates(p, start, end) for p in positions]
+    schedules = [contributions(p, start, end) for p in positions]
     flows: dict[date, float] = Counter()
     flows[start] -= sum(p.value for p in positions)
     for p, sch in zip(positions, schedules):
-        for d, c in sch.items():
+        for d, (c, amount) in sch.items():
             # auf Wochenraster zusammenfassen, beschleunigt die Renditeberechnung stark
             wk = start + timedelta(days=(d - start).days // 7 * 7)
-            flows[wk] -= c * p.rate
+            flows[wk] -= amount
     rate = tax_rate(s.church_tax)
     infl = s.inflation / 100.0
     deflators = [(1 + infl) ** ((x - start).days / DAYS_PER_YEAR) for x in sample_dates]

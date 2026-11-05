@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+from datetime import date
 from typing import Literal, Optional
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
@@ -130,6 +132,11 @@ def put_settings(s: SettingsIn, user=Depends(auth.require_user)):
 
 
 # ---------- Posten ----------
+class RateChange(BaseModel):
+    from_date: date
+    rate: float = Field(ge=0)
+
+
 class PositionIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     kind: Literal["etf", "fund", "stock", "crypto"] = "etf"
@@ -146,6 +153,23 @@ class PositionIn(BaseModel):
     fee: float = Field(default=0, ge=0)
     ter: float = Field(default=0, ge=0, le=10)
     tax_type: Literal["equity_fund", "mixed_fund", "other_fund", "stock", "crypto"] = "equity_fund"
+    changes: list[RateChange] = Field(default_factory=list, max_length=50)
+
+
+def _fold_changes(rate: float, changes: list[dict], today: date | None = None) -> tuple[float, list[dict]]:
+    """Vergangene Änderungen in die aktuelle Sparrate übernehmen, künftige sortiert zurückgeben."""
+    today = today or date.today()
+    by_date = {}
+    for c in changes:
+        d = c["from_date"] if isinstance(c["from_date"], date) else date.fromisoformat(c["from_date"])
+        by_date[d] = float(c["rate"])
+    future = []
+    for d in sorted(by_date):
+        if d <= today:
+            rate = by_date[d]
+        else:
+            future.append({"from_date": d.isoformat(), "rate": by_date[d]})
+    return rate, future
 
 
 FIELDS = list(PositionIn.model_fields.keys())
@@ -153,6 +177,7 @@ FIELDS = list(PositionIn.model_fields.keys())
 
 def _enrich(row) -> dict:
     p = dict(row)
+    p["rate"], p["changes"] = _fold_changes(p["rate"], json.loads(p.get("changes") or "[]"))
     q = market.cached(p["isin"], p["kind"], p["symbol"])
     p["quote"] = q if q and "error" not in q else None
     price = p["quote"]["price_eur"] if p["quote"] else None
@@ -191,6 +216,8 @@ def _clean(p: PositionIn) -> dict:
     d["symbol"] = (d["symbol"] or "").strip().upper() or None
     if d["kind"] == "crypto":
         d["tax_type"] = "crypto"
+    d["rate"], future = _fold_changes(d["rate"], d["changes"])
+    d["changes"] = json.dumps(future)
     return d
 
 
@@ -266,7 +293,9 @@ def run_simulation(user=Depends(auth.require_user)):
     positions = [Pos(value=r["value"], basis=r["basis"], rate=r["rate"], interval=r["interval"],
                      exec_day=r["exec_day"], trading=r["trading"], ret=r["ret"], fee=r["fee"],
                      ter=r["ter"] if r["ret_src"] == "manual" else 0.0,
-                     tax_type=r["tax_type"]) for r in rows]
+                     tax_type=r["tax_type"],
+                     changes=[(date.fromisoformat(c["from_date"]), c["rate"]) for c in r["changes"]])
+                 for r in rows]
     result = simulate(positions, Settings(**s))
     result["warnings"] = [f"{r['name']}: keine erwartete Rendite, es wird mit 0 % gerechnet"
                           for r in rows if r["ret_src"] == "none"]

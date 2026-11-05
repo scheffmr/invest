@@ -215,3 +215,11 @@ body:has(dialog[open]) { overflow: hidden; }
 #settings .dlg-actions { align-items: center; }
 #settings.grid { grid-template-columns: repeat(2, 1fr); }
 @media (max-width: 420px) { #settings.grid { grid-template-columns: 1fr; } }
+/* Sparratenänderungen */
+.changes { display: grid; gap: 8px; }
+.ch-head { font-size: 12px; color: var(--text-2); }
+#ch-list { display: grid; gap: 8px; }
+#ch-list:empty { display: none; }
+.ch-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
+.ch-row input[type=date] { min-height: 42px; }
+.changes > .btn { justify-self: start; }

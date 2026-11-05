@@ -19,6 +19,7 @@ const INFO = {
   interval: "Wie oft gekauft wird. Täglich mit „nur Börsentage“ kauft an jedem Xetra-Handelstag.",
   exec_day: "Wochentag bzw. Tag im Monat der Ausführung. Gibt es den Tag im Monat nicht (z. B. 31.), wird am letzten Tag gekauft. Fällt er auf keinen Börsentag, rückt der Kauf auf den nächsten Handelstag.",
   trading: "Nur Börsentage: Käufe an Wochenenden und Xetra-Feiertagen rücken auf den nächsten Handelstag. Jeden Tag: typisch für Krypto.",
+  changes: "Ab dem angegebenen Datum gilt die neue Sparrate, bis zur nächsten Änderung. So lassen sich Erhöhungen planen, ein späterer Start (Sparrate bis dahin 0) oder ein Ende (ab dem Datum 0). Erreichte Änderungen werden automatisch zur aktuellen Sparrate.",
   manual_return: "Erwartete Wertentwicklung pro Jahr. Leer bedeutet: historische Rendite der letzten bis zu 10 Jahre. Vergangene Renditen sind keine Garantie.",
   fee: "Gebühr je Kauf in Euro. Sie wird von der Sparrate abgezogen, zählt aber zum Einstandswert.",
   ter: "Laufende Kosten pro Jahr. Werden nur bei manueller Rendite abgezogen, weil die historische Rendite die Kosten bereits enthält.",
