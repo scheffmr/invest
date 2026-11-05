@@ -92,7 +92,7 @@ def execution_dates(p: Pos, start: date, end: date) -> Counter:
 
 
 def _run(positions: list[Pos], schedules: list[Counter], start: date, end: date,
-         delta: float, sample_days: set[date]):
+         delta: float, sample_days: set[date], infl: float = 0.0):
     n = len(positions)
     values = [p.value for p in positions]
     basis = [p.basis for p in positions]
@@ -103,10 +103,14 @@ def _run(positions: list[Pos], schedules: list[Counter], start: date, end: date,
         net = (1 + r) * (1 - p.ter / 100.0) - 1
         factors.append((1 + net) ** (1 / DAYS_PER_YEAR))
 
-    series_val, series_paid = [sum(values)], [paid]
+    paid_real = paid
+    day_infl = (1 + infl) ** (1 / DAYS_PER_YEAR)
+    deflator = 1.0
+    series_val, series_paid, series_paid_real = [sum(values)], [paid], [paid_real]
     d = start
     while d < end:
         d += timedelta(days=1)
+        deflator *= day_infl
         for i in range(n):
             values[i] *= factors[i]
             c = schedules[i].get(d)
@@ -115,10 +119,12 @@ def _run(positions: list[Pos], schedules: list[Counter], start: date, end: date,
                 values[i] += c * max(0.0, p.rate - p.fee)
                 basis[i] += c * p.rate
                 paid += c * p.rate
+                paid_real += c * p.rate / deflator
         if d in sample_days:
             series_val.append(sum(values))
             series_paid.append(paid)
-    return values, basis, paid, series_val, series_paid
+            series_paid_real.append(paid_real)
+    return values, basis, paid, series_val, (series_paid, series_paid_real)
 
 
 def _pct(x):
@@ -189,7 +195,7 @@ def simulate(positions: list[Pos], s: Settings, start: date | None = None) -> di
     result = {"labels": labels, "scenarios": {}, "start": start.isoformat(), "end": end.isoformat()}
     paid_series = None
     for key, delta in (("expected", 0.0), ("best", s.best_delta), ("worst", s.worst_delta)):
-        vals, basis, paid, sv, sp = _run(positions, schedules, start, end, delta, sample_days)
+        vals, basis, paid, sv, (sp, sp_real) = _run(positions, schedules, start, end, delta, sample_days, infl)
         paid_series = sp
         taxable = 0.0
         for p, v, b in zip(positions, vals, basis):
@@ -218,6 +224,8 @@ def simulate(positions: list[Pos], s: Settings, start: date | None = None) -> di
         }
     result["paid_in"] = [round(x, 2) for x in paid_series]
     result["paid_total"] = round(paid_series[-1], 2)
+    result["paid_in_real"] = [round(x, 2) for x in sp_real]
+    result["paid_total_real"] = round(sp_real[-1], 2)
     result["start_value"] = round(sum(p.value for p in positions), 2)
     result["tax_rate"] = round(rate * 100, 3)
     return result

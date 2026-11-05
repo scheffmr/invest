@@ -204,3 +204,14 @@ body:has(dialog[open]) { overflow: hidden; }
   .card { padding: 14px; }
   dialog form { padding: 16px 14px; }
 }
+/* Annahmen-Zeile und Modal */
+.assume {
+  margin-top: 10px; width: 100%; display: flex; justify-content: space-between; gap: 12px; align-items: center;
+  background: var(--surface-2); border: 0; border-radius: 10px; padding: 9px 12px; cursor: pointer;
+  font: inherit; font-size: 12px; color: var(--text-2); text-align: left;
+}
+.assume .edit { color: var(--accent); font-weight: 600; white-space: nowrap; }
+#settings h3 { margin: 0; }
+#settings .dlg-actions { align-items: center; }
+#settings.grid { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 420px) { #settings.grid { grid-template-columns: 1fr; } }

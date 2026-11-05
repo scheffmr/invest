@@ -84,3 +84,15 @@ def test_irr_matches_expected_return():
     assert abs(sc["best"]["irr_pct"] - 10) < 0.05
     assert sc["expected"]["irr_net_pct"] < sc["expected"]["irr_pct"]
     assert abs(sc["expected"]["irr_net_real_pct"] - ((1 + sc["expected"]["irr_net_pct"] / 100) / 1.02 - 1) * 100) < 0.01
+
+
+def test_paid_in_real():
+    p = Pos(value=1000, basis=1000, rate=100, interval="monthly", exec_day=1, trading="always", ret=5)
+    r0 = simulate([p], Settings(years=10, inflation=0), date(2026, 11, 4))
+    assert r0["paid_in_real"] == r0["paid_in"]
+    r = simulate([p], Settings(years=10, inflation=2), date(2026, 11, 4))
+    assert r["paid_in_real"][0] == r["paid_in"][0] == 1000
+    assert r["paid_total_real"] < r["paid_total"]
+    # letzte Einzahlung nach ~10 Jahren zählt real nur noch ca. 100 / 1,02^10
+    inc_real = r["paid_in_real"][-1] - r["paid_in_real"][-2]
+    assert abs(inc_real - 100 / 1.02 ** 10) < 1

@@ -12,7 +12,10 @@
 <div class="wrap">
   <header class="top">
     <div class="brand"><img src="/static/icon.svg" width="26" height="26" alt=""> Depotplaner</div>
-    <button class="btn ghost small" id="logout">Abmelden</button>
+    <div class="inline">
+      <button class="btn ghost small" id="open-settings" aria-label="Annahmen">⚙︎ Annahmen</button>
+      <button class="btn ghost small" id="logout">Abmelden</button>
+    </div>
   </header>
 
   <section>
@@ -27,6 +30,7 @@
     </div>
     <div class="tiles" id="tiles"></div>
     <div class="paidline" id="paidline"></div>
+    <button class="assume" id="assume" type="button"></button>
 
     <div class="card chart-card">
       <div class="chart-tools">
@@ -43,8 +47,21 @@
   </section>
 
   <section>
-    <h2>Annahmen</h2>
-    <form class="card grid" id="settings">
+    <div class="row-head">
+      <h2>Posten</h2>
+      <div class="inline">
+        <button class="btn small" id="refresh-all">Kurse aktualisieren</button>
+        <button class="btn small" id="import">Import</button>
+        <button class="btn primary small" id="add">+ Posten</button>
+      </div>
+    </div>
+    <div class="positions" id="positions"></div>
+  </section>
+</div>
+
+<dialog id="set-dlg">
+  <form class="grid" id="settings">
+      <h3 class="wide">Annahmen</h3>
       <label class="f">Anlagehorizont (Jahre)<input name="years" inputmode="numeric"></label>
       <label class="f">Best Case (± %-Punkte p.&nbsp;a.)<input name="best_delta" inputmode="decimal"></label>
       <label class="f">Worst Case (± %-Punkte p.&nbsp;a.)<input name="worst_delta" inputmode="decimal"></label>
@@ -57,22 +74,12 @@
           <option value="9">9 % (übrige Länder)</option>
         </select>
       </label>
-      <div class="status" id="settings-status"></div>
-    </form>
-  </section>
-
-  <section>
-    <div class="row-head">
-      <h2>Posten</h2>
-      <div class="inline">
-        <button class="btn small" id="refresh-all">Kurse aktualisieren</button>
-        <button class="btn small" id="import">Import</button>
-        <button class="btn primary small" id="add">+ Posten</button>
+      <div class="dlg-actions wide">
+        <div class="status" id="settings-status"></div>
+        <button type="button" class="btn primary" id="settings-done">Fertig</button>
       </div>
-    </div>
-    <div class="positions" id="positions"></div>
-  </section>
-</div>
+    </form>
+</dialog>
 
 <dialog id="dlg">
   <form method="dialog" id="pos-form">

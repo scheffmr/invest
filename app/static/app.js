@@ -67,10 +67,11 @@ function renderTiles() {
     </div>`;
   }).join("");
   $("#paidline").innerHTML =
-    `<span>Eingezahlt gesamt <b>${eur.format(sim.paid_total)}</b></span>` +
+    `<span>Eingezahlt gesamt <b>${eur.format(real ? sim.paid_total_real : sim.paid_total)}</b>${real ? " (Kaufkraft heute)" : ""}</span>` +
     `<span>Depot heute <b>${eur.format(sim.start_value)}</b></span>` +
     `<span>Steuersatz <b>${pct(sim.tax_rate)}</b></span>` +
     (real ? `<span>Real = in heutiger Kaufkraft</span>` : "");
+  renderAssume();
   $("#warnings").innerHTML = (sim.warnings || []).map(esc).join("<br>");
 }
 
@@ -95,7 +96,7 @@ function renderChart() {
       { label: "Best Case", data: sim.scenarios.best[key], borderColor: accent, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false },
       { label: "Worst Case", data: sim.scenarios.worst[key], borderColor: accent, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: "-1", backgroundColor: soft },
       { label: "Erwartet", data: sim.scenarios.expected[key], borderColor: accent, borderWidth: 2.5, pointRadius: 0, fill: false },
-      { label: "Eingezahlt", data: sim.paid_in, borderColor: paid, borderWidth: 2, borderDash: [3, 3], pointRadius: 0, fill: false },
+      { label: "Eingezahlt", data: state.mode === "real" ? sim.paid_in_real : sim.paid_in, borderColor: paid, borderWidth: 2, borderDash: [3, 3], pointRadius: 0, fill: false },
     ],
   };
   const options = {
@@ -150,9 +151,26 @@ function fillSettings() {
 sForm.addEventListener("input", () => {
   clearTimeout(sTimer);
   $("#settings-status").textContent = "";
-  sTimer = setTimeout(saveSettings, 600);
+  sTimer = setTimeout(() => { sTimer = null; saveSettings(); }, 600);
 });
 sForm.addEventListener("submit", (e) => e.preventDefault());
+
+const setDlg = $("#set-dlg");
+function openSettings() { fillSettings(); $("#settings-status").textContent = ""; setDlg.showModal(); }
+$("#open-settings").addEventListener("click", openSettings);
+$("#assume").addEventListener("click", openSettings);
+$("#settings-done").addEventListener("click", async () => {
+  if (sTimer) { clearTimeout(sTimer); sTimer = null; await saveSettings(); }
+  if (!$("#settings-status").textContent.startsWith("Bitte")) setDlg.close();
+});
+
+function renderAssume() {
+  const s = state.settings;
+  if (!s) return;
+  const sign = (v) => `${v > 0 ? "+" : ""}${v.toLocaleString("de-DE")}`;
+  const church = s.church_tax ? ` · KiSt ${Math.round(s.church_tax)} %` : "";
+  $("#assume").innerHTML = `<span>${s.years} Jahre · Best ${sign(s.best_delta)} · Worst ${sign(s.worst_delta)} Pkt. · Inflation ${s.inflation.toLocaleString("de-DE")} % · Pauschbetrag ${eur.format(s.allowance)}${church}</span><span class="edit">ändern</span>`;
+}
 
 async function saveSettings() {
   const body = {};
