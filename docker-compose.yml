@@ -6,26 +6,14 @@ services:
       DOMAIN: ${DOMAIN}
     volumes:
       - app_data:/data
-    expose:
-      - "8000"
+    networks:
+      web:
+        aliases:
+          - invest
 
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    depends_on:
-      - app
-    environment:
-      DOMAIN: ${DOMAIN}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+networks:
+  web:
+    external: true
 
 volumes:
   app_data:
-  caddy_data:
-  caddy_config:

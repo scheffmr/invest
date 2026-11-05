@@ -1,0 +1,3 @@
+# Zentraler Reverse Proxy für alle Tools auf dem Server.
+# Jede Subdomain bekommt eine eigene Datei in sites/<name>.caddy.
+import /etc/caddy/sites/*.caddy

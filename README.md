@@ -19,33 +19,69 @@ Selbst gehostetes Tool zur Planung von Sparplänen (ETF, Fonds, Aktien, Krypto) 
 
 ## Deployment auf dem Server
 
-1. **DNS bei all-inkl:** A-Record und AAAA-Record für `invest.scheffel.rocks` auf die IPv4 bzw. IPv6 des Servers. Kein Redirect, sondern echte DNS-Einträge.
-2. **Firewall:**
+Auf dem Server läuft ein zentraler Caddy (`~/proxy`) für alle Subdomains. Jedes Tool ist ein eigenes Docker-Projekt im gemeinsamen Netz `web` und veröffentlicht selbst keine Ports.
+
+```
+~/proxy/              zentraler Caddy, Ports 80 und 443
+  Caddyfile
+  sites/invest.caddy  eine Datei pro Subdomain
+~/invest/             dieses Repo
+~/<weiteres-tool>/
+```
+
+### Ersteinrichtung
+
+1. **DNS bei all-inkl:** A- und AAAA-Record für `invest.scheffel.rocks` auf den Server.
+2. **Hetzner Firewall:** eingehend TCP 80, TCP 443, UDP 443 (IPv4 und IPv6).
+3. **Docker:** `curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker $USER`, danach neu einloggen.
+4. **Netz und Proxy:**
    ```
-   sudo ufw allow 80/tcp
-   sudo ufw allow 443/tcp
-   sudo ufw allow 443/udp
+   docker network create web
+   git clone https://github.com/scheffmr/invest.git ~/invest
+   cp -r ~/invest/deploy/proxy ~/proxy
+   cd ~/proxy && docker compose up -d
    ```
-3. **Docker installieren** (falls noch nicht vorhanden):
+5. **Depotplaner:**
    ```
-   curl -fsSL https://get.docker.com | sudo sh
-   sudo usermod -aG docker $USER   # danach neu einloggen
-   ```
-4. **Repo klonen und starten:**
-   ```
-   git clone https://github.com/scheffmr/invest.git
-   cd invest
+   cd ~/invest
    cp .env.example .env
    docker compose up -d --build
-   ```
-   Caddy holt das Zertifikat automatisch. Prüfen mit `docker compose logs -f caddy`.
-5. **Account anlegen:**
-   ```
    docker compose exec app python -m app.admin create-user marco
    ```
-   Der ausgegebene Link ist 15 Minuten gültig. Öffne ihn auf dem Gerät, das den Passkey bekommen soll.
 
-> Hinweis: Docker veröffentlicht Ports an ufw vorbei. Hier ist das gewollt, weil nur 80 und 443 (Caddy) veröffentlicht werden. Die App selbst ist nur intern erreichbar.
+### Weiteres Tool hinzufügen
+
+1. DNS-Einträge für die neue Subdomain anlegen.
+2. Im `docker-compose.yml` des Tools keine Ports veröffentlichen, sondern das Netz `web` mit einem eindeutigen Alias nutzen:
+   ```yaml
+   services:
+     app:
+       networks:
+         web:
+           aliases: [meintool]
+   networks:
+     web:
+       external: true
+   ```
+3. `~/proxy/sites/meintool.caddy` anlegen:
+   ```
+   meintool.scheffel.rocks {
+   	reverse_proxy meintool:8000
+   }
+   ```
+4. Caddy neu laden: `cd ~/proxy && docker compose exec -w /etc/caddy caddy caddy reload`
+
+### Umstieg von der alten Variante (Caddy im Invest-Projekt)
+
+```
+cd ~/invest && docker compose down
+git pull
+docker network create web
+cp -r ~/invest/deploy/proxy ~/proxy
+cd ~/proxy && docker compose up -d
+cd ~/invest && docker compose up -d --build
+```
+Die Depotdaten bleiben erhalten, das Zertifikat wird neu ausgestellt.
 
 ## Verwaltung per SSH
 

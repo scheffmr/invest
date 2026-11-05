@@ -1,8 +1,8 @@
-{$DOMAIN} {
+invest.scheffel.rocks {
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		-Server
 	}
-	reverse_proxy app:8000
+	reverse_proxy invest:8000
 }
