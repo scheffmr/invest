@@ -3,7 +3,7 @@
 const $ = (s, el = document) => el.querySelector(s);
 const eur = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const eur2 = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
-const pct = (v) => (v == null ? "–" : `${v.toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`);
+const pct = (v) => (v == null ? "–" : `${(Math.abs(v) < 0.05 ? 0 : v).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`);
 const num = (v) => {
   if (v == null) return null;
   const s = String(v).trim().replace(/\./g, (m, i, str) => (str.includes(",") ? "" : m)).replace(",", ".");

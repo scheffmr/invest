@@ -194,3 +194,13 @@ h2 .info { text-transform: none; letter-spacing: 0; }
 .imp-item .row2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .imp-item select { width: auto; padding: 5px 8px; font-size: 13px; }
 .warnlist { font-size: 12px; color: var(--muted); }
+/* iOS: kein automatisches Hineinzoomen bei Eingabefeldern (Safari zoomt unter 16px) */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+input, select, textarea { font-size: 16px; }
+dialog { overscroll-behavior: contain; overflow-y: auto; }
+body:has(dialog[open]) { overflow: hidden; }
+@media (max-width: 420px) {
+  .wrap { padding: 0 12px 40px; }
+  .card { padding: 14px; }
+  dialog form { padding: 16px 14px; }
+}
