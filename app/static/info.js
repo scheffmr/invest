@@ -1,7 +1,7 @@
 "use strict";
 // Info-Symbole: erklären Einstellungen und Felder per Antippen.
 const INFO = {
-  forecast: "Endwerte nach Ablauf des Anlagehorizonts. Netto ist der Wert nach Steuer, wenn am Ende alles verkauft wird. Rendite gesamt bezieht den Nettogewinn auf das insgesamt eingezahlte Kapital.",
+  forecast: "Endwerte nach Ablauf des Anlagehorizonts. Netto ist der Wert nach Steuer, wenn am Ende alles verkauft wird. Rendite p. a. ist die jährliche Verzinsung deines Geldes nach Steuer (interner Zinsfuß). Sie berücksichtigt, wann jeder Euro eingezahlt wurde, und ist deshalb mit der erwarteten Rendite der Posten vergleichbar.",
   mode: "Nominal zeigt die Eurobeträge der Zukunft. Real rechnet sie mit der angegebenen Inflation in heutige Kaufkraft um. Eingezahltes Kapital und Steuer bleiben nominal.",
   years: "Zeitraum der Prognose ab heute. Am Ende wird ein Verkauf des gesamten Depots angenommen und die Steuer berechnet.",
   best_delta: "Prozentpunkte, die im Best Case auf die erwartete Rendite jedes Postens aufgeschlagen werden. Beispiel: 7 % erwartet und +3 ergibt 10 % p. a.",

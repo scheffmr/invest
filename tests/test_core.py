@@ -73,3 +73,14 @@ def test_revolut_import():
     assert abc["plan"]["interval"] == "weekly" and abc["plan"]["exec_day"] == 3
     btc = next(i for i in r["items"] if i["ident"] == "BTC")
     assert btc["shares"] == 0.001 and btc["cost_basis"] == 70.5
+
+
+def test_irr_matches_expected_return():
+    p = Pos(value=1000, basis=1000, rate=100, interval="monthly", exec_day=15, trading="always", ret=7)
+    r = simulate([p], Settings(years=20, best_delta=3, worst_delta=-4, inflation=2, allowance=0),
+                 date(2026, 11, 4))
+    sc = r["scenarios"]
+    assert abs(sc["expected"]["irr_pct"] - 7) < 0.05
+    assert abs(sc["best"]["irr_pct"] - 10) < 0.05
+    assert sc["expected"]["irr_net_pct"] < sc["expected"]["irr_pct"]
+    assert abs(sc["expected"]["irr_net_real_pct"] - ((1 + sc["expected"]["irr_net_pct"] / 100) / 1.02 - 1) * 100) < 0.01

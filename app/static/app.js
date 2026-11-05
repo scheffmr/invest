@@ -57,11 +57,12 @@ function renderTiles() {
       <dl>${real ? `
         <dt>Brutto real</dt><dd>${eur.format(gross)}</dd>
         <dt>Netto nominal</dt><dd>${eur.format(s.net)}</dd>
-        <dt>Steuer nominal</dt><dd>${eur.format(s.tax)}</dd>` : `
+        <dt>Steuer nominal</dt><dd>${eur.format(s.tax)}</dd>
+        <dt>Rendite p. a. real</dt><dd>${pct(s.irr_net_real_pct)}</dd>` : `
         <dt>Brutto</dt><dd>${eur.format(gross)}</dd>
         <dt>Steuer</dt><dd>${eur.format(s.tax)}</dd>
         <dt>Gewinn netto</dt><dd>${eur.format(s.gain_net)}</dd>
-        <dt>Rendite gesamt</dt><dd>${pct(s.return_net_pct)}</dd>`}
+        <dt>Rendite p. a.</dt><dd>${pct(s.irr_net_pct)}</dd>`}
       </dl>
     </div>`;
   }).join("");

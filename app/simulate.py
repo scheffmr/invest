@@ -121,6 +121,35 @@ def _run(positions: list[Pos], schedules: list[Counter], start: date, end: date,
     return values, basis, paid, series_val, series_paid
 
 
+def _pct(x):
+    return None if x is None else round(x * 100, 2)
+
+
+def _real(r, infl):
+    return None if r is None else (1 + r) / (1 + infl) - 1
+
+
+def irr(flows: dict[date, float], start: date) -> float | None:
+    """Jährliche Rendite (XIRR) für Zahlungsströme. Auszahlungen negativ, Endwert positiv."""
+    items = [((d - start).days / DAYS_PER_YEAR, v) for d, v in flows.items() if v]
+    if not any(v < 0 for _, v in items) or not any(v > 0 for _, v in items):
+        return None
+
+    def npv(r):
+        return sum(v / (1 + r) ** t for t, v in items)
+
+    lo, hi = -0.99, 10.0
+    if npv(lo) * npv(hi) > 0:
+        return None
+    for _ in range(100):
+        mid = (lo + hi) / 2
+        if npv(lo) * npv(mid) <= 0:
+            hi = mid
+        else:
+            lo = mid
+    return (lo + hi) / 2
+
+
 def simulate(positions: list[Pos], s: Settings, start: date | None = None) -> dict:
     start = start or date.today()
     years = max(1, min(60, int(s.years)))
@@ -145,6 +174,13 @@ def simulate(positions: list[Pos], s: Settings, start: date | None = None) -> di
     sample_dates = [start] + sorted(sample_days)
 
     schedules = [execution_dates(p, start, end) for p in positions]
+    flows: dict[date, float] = Counter()
+    flows[start] -= sum(p.value for p in positions)
+    for p, sch in zip(positions, schedules):
+        for d, c in sch.items():
+            # auf Wochenraster zusammenfassen, beschleunigt die Renditeberechnung stark
+            wk = start + timedelta(days=(d - start).days // 7 * 7)
+            flows[wk] -= c * p.rate
     rate = tax_rate(s.church_tax)
     infl = s.inflation / 100.0
     deflators = [(1 + infl) ** ((x - start).days / DAYS_PER_YEAR) for x in sample_dates]
@@ -176,6 +212,9 @@ def simulate(positions: list[Pos], s: Settings, start: date | None = None) -> di
             "gain_net": round(net - paid, 2),
             "return_pct": round((gross - paid) / paid * 100, 2) if paid > 0 else None,
             "return_net_pct": round((net - paid) / paid * 100, 2) if paid > 0 else None,
+            "irr_pct": _pct(irr({**flows, end: flows.get(end, 0) + gross}, start)),
+            "irr_net_pct": _pct(irr_net := irr({**flows, end: flows.get(end, 0) + net}, start)),
+            "irr_net_real_pct": _pct(_real(irr_net, infl)),
         }
     result["paid_in"] = [round(x, 2) for x in paid_series]
     result["paid_total"] = round(paid_series[-1], 2)
